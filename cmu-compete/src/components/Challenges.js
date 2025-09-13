@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase";
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from "firebase/firestore";
 
 export default function Challenges({ currentAndrewID }) {
+  const navigate = useNavigate();
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -100,6 +102,12 @@ export default function Challenges({ currentAndrewID }) {
     }
   };
 
+  const handleProfileClick = (andrewID) => {
+    if (andrewID) {
+      navigate(`/profile/${andrewID}`);
+    }
+  };
+
   if (loading) return <p style={{ color: "#660000" }}>Loading challenges...</p>;
 
   const incomingChallenges = challenges.filter(c => c.type === "incoming" && c.status === "pending");
@@ -126,9 +134,40 @@ export default function Challenges({ currentAndrewID }) {
               marginBottom: '10px',
               border: '2px solid #ef4444'
             }}>
-              <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>
-                {challenge.challengerAndrewID} challenged you to {challenge.sport}!
-              </p>
+              <div style={{ margin: '0 0 10px 0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => handleProfileClick(challenge.challengerAndrewID)}
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    border: "2px solid #fecaca",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    transition: "all 0.2s ease-in-out",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f3f4f6",
+                    padding: 0
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.transform = 'scale(1.05)';
+                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                  }}
+                  title={`View ${challenge.challengerAndrewID}'s profile`}
+                >
+                  <span style={{color: '#b91c1c', fontWeight: 'bold', fontSize: '14px'}}>
+                    {challenge.challengerAndrewID?.charAt(0)?.toUpperCase()}
+                  </span>
+                </button>
+                <span>{challenge.challengerAndrewID} challenged you to {challenge.sport}!</span>
+              </div>
               
               {/* Challenge Details */}
               <div style={{ marginBottom: '10px', fontSize: '14px' }}>
@@ -196,9 +235,41 @@ export default function Challenges({ currentAndrewID }) {
               marginBottom: '10px',
               border: '2px solid #ef4444'
             }}>
-              <p style={{ margin: '0 0 10px 0' }}>
-                You challenged {challenge.opponentAndrewID} to {challenge.sport}
-              </p>
+              <div style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>You challenged </span>
+                <button
+                  onClick={() => handleProfileClick(challenge.opponentAndrewID)}
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    border: "2px solid #fecaca",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    transition: "all 0.2s ease-in-out",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f3f4f6",
+                    padding: 0
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.transform = 'scale(1.05)';
+                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                  }}
+                  title={`View ${challenge.opponentAndrewID}'s profile`}
+                >
+                  <span style={{color: '#b91c1c', fontWeight: 'bold', fontSize: '14px'}}>
+                    {challenge.opponentAndrewID?.charAt(0)?.toUpperCase()}
+                  </span>
+                </button>
+                <span>{challenge.opponentAndrewID} to {challenge.sport}</span>
+              </div>
               
               {/* Challenge Details */}
               <div style={{ marginBottom: '10px', fontSize: '14px' }}>
@@ -263,12 +334,41 @@ export default function Challenges({ currentAndrewID }) {
               <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>
                 {challenge.sport} match accepted!
               </p>
-              <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#666' }}>
-                {challenge.type === "incoming" 
-                  ? `You vs ${challenge.challengerAndrewID}`
-                  : `You vs ${challenge.opponentAndrewID}`
-                }
-              </p>
+              <div style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>You vs </span>
+                <button
+                  onClick={() => handleProfileClick(challenge.type === "incoming" ? challenge.challengerAndrewID : challenge.opponentAndrewID)}
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    border: "2px solid #fecaca",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    transition: "all 0.2s ease-in-out",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f3f4f6",
+                    padding: 0
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.transform = 'scale(1.05)';
+                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                  }}
+                  title={`View ${challenge.type === "incoming" ? challenge.challengerAndrewID : challenge.opponentAndrewID}'s profile`}
+                >
+                  <span style={{color: '#b91c1c', fontWeight: 'bold', fontSize: '14px'}}>
+                    {(challenge.type === "incoming" ? challenge.challengerAndrewID : challenge.opponentAndrewID)?.charAt(0)?.toUpperCase()}
+                  </span>
+                </button>
+                <span>{challenge.type === "incoming" ? challenge.challengerAndrewID : challenge.opponentAndrewID}</span>
+              </div>
 
               {/* Challenge Details */}
               <div style={{ marginBottom: '10px', fontSize: '14px' }}>

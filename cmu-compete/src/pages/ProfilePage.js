@@ -1,5 +1,6 @@
-// src/components/Profile.js
+// src/pages/ProfilePage.js
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db, storage } from "../firebase";
 import { collection, getDocs, query, where, orderBy, limit, doc, updateDoc } from "firebase/firestore";
@@ -7,18 +8,36 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const sports = ["pingpong", "pool", "foosball", "basketball1v1", "tennis", "beerpong"];
 
-export default function Profile({ user, currentAndrewID }) {
+export default function ProfilePage() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [currentAndrewID, setCurrentAndrewID] = useState("");
   const [userStats, setUserStats] = useState(null);
   const [allMatches, setAllMatches] = useState([]);
   const [recentMatches, setRecentMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [profileImage, setProfileImage] = useState(user?.photoURL || null);
+  const [profileImage, setProfileImage] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((u) => {
+      if (u) {
+        setUser(u);
+        setCurrentAndrewID(u.email.split("@")[0]);
+        setProfileImage(u.photoURL);
+      } else {
+        setUser(null);
+        setCurrentAndrewID("");
+        navigate("/");
+      }
+    });
+    return unsubscribe;
+  }, [navigate]);
+
+  useEffect(() => {
     const fetchUserData = async () => {
-      if (!currentAndrewID) return;
+      if (!currentAndrewID || !user) return;
 
       try {
         // Get user stats from users collection
@@ -93,13 +112,13 @@ export default function Profile({ user, currentAndrewID }) {
     };
 
     fetchUserData();
-  }, [currentAndrewID, user.email]);
+  }, [currentAndrewID, user]);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
       alert("Logged out successfully!");
-      window.location.reload();
+      navigate("/");
     } catch (err) {
       console.error("Logout error:", err);
       alert("Error logging out");
@@ -221,7 +240,9 @@ export default function Profile({ user, currentAndrewID }) {
         boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
         borderRadius: "16px", 
         padding: "24px",
-        textAlign: "center"
+        textAlign: "center",
+        maxWidth: "800px",
+        margin: "30px auto"
       }}>
         <p style={{ color: "#b91c1c" }}>Loading profile...</p>
       </div>
@@ -233,7 +254,9 @@ export default function Profile({ user, currentAndrewID }) {
       backgroundColor: "white", 
       boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
       borderRadius: "16px", 
-      padding: "24px" 
+      padding: "24px",
+      maxWidth: "800px",
+      margin: "30px auto"
     }}>
       <h2 style={{ 
         fontSize: "24px", 
@@ -318,14 +341,14 @@ export default function Profile({ user, currentAndrewID }) {
             color: "#1f2937", 
             margin: "0 0 4px 0" 
           }}>
-            {user.displayName || currentAndrewID}
+            {user?.displayName || currentAndrewID}
           </h3>
           <p style={{ 
             color: "#6b7280", 
             fontSize: "14px", 
             margin: "0 0 4px 0" 
           }}>
-            {user.email}
+            {user?.email}
           </p>
           <p style={{ 
             color: "#b91c1c", 
@@ -583,30 +606,58 @@ export default function Profile({ user, currentAndrewID }) {
         </div>
       )}
 
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        style={{
-          width: "100%",
-          backgroundColor: "#b91c1c",
-          color: "white",
-          padding: "12px 24px",
-          borderRadius: "8px",
-          border: "none",
-          cursor: "pointer",
-          fontWeight: "600",
-          fontSize: "16px",
-          transition: "background-color 0.2s"
-        }}
-        onMouseOver={(e) => {
-          e.target.style.backgroundColor = "#991b1b";
-        }}
-        onMouseOut={(e) => {
-          e.target.style.backgroundColor = "#b91c1c";
-        }}
-      >
-        Logout
-      </button>
+      {/* Action Buttons */}
+      <div style={{ 
+        display: "flex", 
+        gap: "12px", 
+        justifyContent: "center" 
+      }}>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#6b7280",
+            color: "white",
+            borderRadius: "8px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "600",
+            fontSize: "16px",
+            transition: "background-color 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = "#4b5563";
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = "#6b7280";
+          }}
+        >
+          ← Back to Home
+        </button>
+        
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#b91c1c",
+            color: "white",
+            borderRadius: "8px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "600",
+            fontSize: "16px",
+            transition: "background-color 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = "#991b1b";
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = "#b91c1c";
+          }}
+        >
+          Logout
+        </button>
+      </div>
     </div>
   );
 }

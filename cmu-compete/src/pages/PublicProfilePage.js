@@ -1,50 +1,49 @@
-// src/components/Profile.js
-import React, { useEffect, useState, useRef } from "react";
-import { signOut } from "firebase/auth";
-import { auth, db, storage } from "../firebase";
-import { collection, getDocs, query, where, orderBy, limit, doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// src/pages/PublicProfilePage.js
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { db } from "../firebase";
+import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 
 const sports = ["pingpong", "pool", "foosball", "basketball1v1", "tennis", "beerpong"];
 
-export default function Profile({ user, currentAndrewID }) {
-  const [userStats, setUserStats] = useState(null);
+export default function PublicProfilePage() {
+  const { andrewID } = useParams();
+  const navigate = useNavigate();
+  const [userData, setUserData] = useState(null);
   const [allMatches, setAllMatches] = useState([]);
   const [recentMatches, setRecentMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [profileImage, setProfileImage] = useState(user?.photoURL || null);
-  const fileInputRef = useRef(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!currentAndrewID) return;
+      if (!andrewID) return;
 
       try {
-        // Get user stats from users collection
+        // Get user data from users collection
         const usersRef = collection(db, "users");
-        const userQuery = query(usersRef, where("email", "==", user.email));
+        const userQuery = query(usersRef, where("email", "==", `${andrewID}@andrew.cmu.edu`));
         const userSnap = await getDocs(userQuery);
         
-        if (!userSnap.empty) {
-          const userDoc = userSnap.docs[0];
-          const userData = { id: userDoc.id, ...userDoc.data() };
-          setUserStats(userData);
-          // Update profile image if available in user data
-          if (userData.photoURL) {
-            setProfileImage(userData.photoURL);
-          }
+        if (userSnap.empty) {
+          setError("User not found");
+          setLoading(false);
+          return;
         }
+
+        const userDoc = userSnap.docs[0];
+        const user = { id: userDoc.id, ...userDoc.data() };
+        setUserData(user);
 
         // Get all completed matches for the user
         const matchesRef = collection(db, "matches_completed");
         const matchesQuery = query(
           matchesRef,
-          where("challengerAndrewID", "==", currentAndrewID)
+          where("challengerAndrewID", "==", andrewID)
         );
         const opponentMatchesQuery = query(
           matchesRef,
-          where("opponentAndrewID", "==", currentAndrewID)
+          where("opponentAndrewID", "==", andrewID)
         );
 
         const [matchesSnap, opponentMatchesSnap] = await Promise.all([
@@ -80,99 +79,30 @@ export default function Profile({ user, currentAndrewID }) {
           return bTime - aTime;
         });
 
-        // Set all matches for statistics, and recent 10 for display
-        console.log("All matches found:", allMatches.length);
-        console.log("Sample match data:", allMatches.slice(0, 2));
         setAllMatches(allMatches);
         setRecentMatches(allMatches.slice(0, 10));
       } catch (err) {
         console.error("Error fetching user data:", err);
+        setError("Failed to load user data");
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserData();
-  }, [currentAndrewID, user.email]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      alert("Logged out successfully!");
-      window.location.reload();
-    } catch (err) {
-      console.error("Logout error:", err);
-      alert("Error logging out");
-    }
-  };
-
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      // Create a unique filename
-      const fileName = `profile-pictures/${currentAndrewID}_${Date.now()}.${file.name.split('.').pop()}`;
-      const storageRef = ref(storage, fileName);
-
-      // Upload the file
-      await uploadBytes(storageRef, file);
-      
-      // Get the download URL
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      // Update the user's profile picture in Firestore
-      if (userStats && userStats.id) {
-        await updateDoc(doc(db, "users", userStats.id), {
-          photoURL: downloadURL
-        });
-      }
-
-      // Update local state
-      setProfileImage(downloadURL);
-      
-      alert('Profile picture updated successfully!');
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Failed to upload profile picture. Please try again.');
-    } finally {
-      setUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
+  }, [andrewID]);
 
   const getELOForSport = (sport) => {
-    return userStats?.elo?.[sport] || 1000;
+    return userData?.elo?.[sport] || 1000;
   };
 
   const getBestSport = () => {
-    if (!userStats?.elo) return "None";
+    if (!userData?.elo) return "None";
     
     let bestSport = "";
     let highestELO = 1000;
     
-    Object.entries(userStats.elo).forEach(([sport, elo]) => {
+    Object.entries(userData.elo).forEach(([sport, elo]) => {
       if (elo > highestELO) {
         highestELO = elo;
         bestSport = sport;
@@ -221,9 +151,43 @@ export default function Profile({ user, currentAndrewID }) {
         boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
         borderRadius: "16px", 
         padding: "24px",
-        textAlign: "center"
+        textAlign: "center",
+        maxWidth: "800px",
+        margin: "30px auto"
       }}>
         <p style={{ color: "#b91c1c" }}>Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ 
+        backgroundColor: "white", 
+        boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
+        borderRadius: "16px", 
+        padding: "24px",
+        textAlign: "center",
+        maxWidth: "800px",
+        margin: "30px auto"
+      }}>
+        <h2 style={{ color: "#b91c1c", marginBottom: "16px" }}>Profile Not Found</h2>
+        <p style={{ color: "#6b7280", marginBottom: "20px" }}>{error}</p>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#b91c1c",
+            color: "white",
+            borderRadius: "8px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "600",
+            fontSize: "16px"
+          }}
+        >
+          ← Back to Home
+        </button>
       </div>
     );
   }
@@ -233,7 +197,9 @@ export default function Profile({ user, currentAndrewID }) {
       backgroundColor: "white", 
       boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
       borderRadius: "16px", 
-      padding: "24px" 
+      padding: "24px",
+      maxWidth: "800px",
+      margin: "30px auto"
     }}>
       <h2 style={{ 
         fontSize: "24px", 
@@ -242,7 +208,7 @@ export default function Profile({ user, currentAndrewID }) {
         color: "#b91c1c", 
         textAlign: "center" 
       }}>
-        Profile
+        {andrewID}'s Profile
       </h2>
       
       {/* User Info Section */}
@@ -255,62 +221,18 @@ export default function Profile({ user, currentAndrewID }) {
         backgroundColor: "#fef2f2",
         borderRadius: "12px"
       }}>
-        <div style={{ position: "relative" }}>
-          <img 
-            src={profileImage || `https://ui-avatars.com/api/?name=${currentAndrewID}&background=b91c1c&color=fff`} 
-            alt="profile" 
-            style={{ 
-              width: "80px", 
-              height: "80px", 
-              borderRadius: "50%", 
-              border: "4px solid #fecaca",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              opacity: uploading ? 0.7 : 1
-            }} 
-          />
-          {uploading && (
-            <div style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              backgroundColor: "rgba(0,0,0,0.7)",
-              color: "white",
-              padding: "4px 8px",
-              borderRadius: "4px",
-              fontSize: "12px",
-              fontWeight: "bold"
-            }}>
-              Uploading...
-            </div>
-          )}
-          <button
-            onClick={triggerFileInput}
-            disabled={uploading}
-            style={{
-              position: "absolute",
-              bottom: "-5px",
-              right: "-5px",
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              backgroundColor: uploading ? "#6b7280" : "#b91c1c",
-              border: "2px solid white",
-              color: "white",
-              cursor: uploading ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "14px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              opacity: uploading ? 0.6 : 1
-            }}
-            title={uploading ? "Uploading..." : "Change profile picture"}
-          >
-            {uploading ? "⏳" : "📷"}
-          </button>
-        </div>
+        <img 
+          src={userData?.photoURL || `https://ui-avatars.com/api/?name=${andrewID}&background=b91c1c&color=fff`} 
+          alt="profile" 
+          style={{ 
+            width: "80px", 
+            height: "80px", 
+            borderRadius: "50%", 
+            border: "4px solid #fecaca",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            objectFit: "cover"
+          }} 
+        />
         <div style={{ flex: 1 }}>
           <h3 style={{ 
             fontSize: "20px", 
@@ -318,14 +240,14 @@ export default function Profile({ user, currentAndrewID }) {
             color: "#1f2937", 
             margin: "0 0 4px 0" 
           }}>
-            {user.displayName || currentAndrewID}
+            {userData?.displayName || andrewID}
           </h3>
           <p style={{ 
             color: "#6b7280", 
             fontSize: "14px", 
             margin: "0 0 4px 0" 
           }}>
-            {user.email}
+            {userData?.email}
           </p>
           <p style={{ 
             color: "#b91c1c", 
@@ -333,19 +255,10 @@ export default function Profile({ user, currentAndrewID }) {
             fontWeight: "600", 
             margin: 0 
           }}>
-            @{currentAndrewID}
+            @{andrewID}
           </p>
         </div>
       </div>
-
-      {/* Hidden file input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleImageUpload}
-        accept="image/*"
-        style={{ display: "none" }}
-      />
 
       {/* Key Statistics */}
       <div style={{ 
@@ -583,30 +496,31 @@ export default function Profile({ user, currentAndrewID }) {
         </div>
       )}
 
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        style={{
-          width: "100%",
-          backgroundColor: "#b91c1c",
-          color: "white",
-          padding: "12px 24px",
-          borderRadius: "8px",
-          border: "none",
-          cursor: "pointer",
-          fontWeight: "600",
-          fontSize: "16px",
-          transition: "background-color 0.2s"
-        }}
-        onMouseOver={(e) => {
-          e.target.style.backgroundColor = "#991b1b";
-        }}
-        onMouseOut={(e) => {
-          e.target.style.backgroundColor = "#b91c1c";
-        }}
-      >
-        Logout
-      </button>
+      {/* Back Button */}
+      <div style={{ textAlign: "center" }}>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#b91c1c",
+            color: "white",
+            borderRadius: "8px",
+            border: "none",
+            cursor: "pointer",
+            fontWeight: "600",
+            fontSize: "16px",
+            transition: "background-color 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = "#991b1b";
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = "#b91c1c";
+          }}
+        >
+          ← Back to Home
+        </button>
+      </div>
     </div>
   );
 }

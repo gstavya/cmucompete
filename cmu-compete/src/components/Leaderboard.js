@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase";
 import { collection, getDocs, addDoc, serverTimestamp, query, where } from "firebase/firestore";
 
 const sports = ["pingpong", "pool", "foosball", "basketball1v1", "tennis", "beerpong"];
 
 export default function Leaderboard({ currentAndrewID }) {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [challenging, setChallenging] = useState(null);
@@ -86,6 +88,13 @@ export default function Leaderboard({ currentAndrewID }) {
     setChallengeForm({ date: '', time: '', place: '', dare: '' });
   };
 
+  const handleProfileClick = (user) => {
+    const andrewID = user.email?.split('@')[0] || user.andrewID;
+    if (andrewID) {
+      navigate(`/profile/${andrewID}`);
+    }
+  };
+
   if (loading) return <p style={{ color: "#b91c1c", textAlign: "center", marginTop: "30px" }}>Loading leaderboard...</p>;
 
   return (
@@ -104,46 +113,96 @@ export default function Leaderboard({ currentAndrewID }) {
             <h3 style={{ fontSize: "22px", fontWeight: "bold", color: "#ef4444", marginBottom: "15px" }}>
               {sport.toUpperCase()}
             </h3>
-            {sorted.map((user, i) => (
-              <div
-                key={user.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "12px 20px",
-                  backgroundColor: "#ffe5e5",
-                  borderRadius: "12px",
-                  marginBottom: "8px",
-                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                  border: i === 0 ? "2px solid #b91c1c" : "1px solid #ef4444",
-                  fontWeight: i === 0 ? "bold" : "normal",
-                  fontSize: "16px",
-                }}
-              >
-                <span>{i + 1}. {user.displayName || user.andrewID || user.email?.split('@')[0] || "(Unknown)"}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span>{user.elo?.[sport] || 1000}</span>
-                  {currentAndrewID && user.email?.split('@')[0] !== currentAndrewID && (
+            {sorted.map((user, i) => {
+              const andrewID = user.email?.split('@')[0] || user.andrewID;
+              const displayName = user.displayName || andrewID || "(Unknown)";
+              
+              return (
+                <div
+                  key={user.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "12px 20px",
+                    backgroundColor: "#ffe5e5",
+                    borderRadius: "12px",
+                    marginBottom: "8px",
+                    boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                    border: i === 0 ? "2px solid #b91c1c" : "1px solid #ef4444",
+                    fontWeight: i === 0 ? "bold" : "normal",
+                    fontSize: "16px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <button
-                      onClick={() => openChallengeForm(user, sport)}
+                      onClick={() => handleProfileClick(user)}
                       style={{
-                        padding: "6px 12px",
-                        backgroundColor: "#ef4444",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        border: "2px solid #fecaca",
                         cursor: "pointer",
-                        fontSize: "12px",
-                        fontWeight: "bold"
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        transition: "all 0.2s ease-in-out",
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "#f3f4f6",
+                        padding: 0
                       }}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = 'scale(1.05)';
+                        e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = 'scale(1)';
+                        e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                      }}
+                      title={`View ${displayName}'s profile`}
                     >
-                      Challenge
+                      {user.photoURL ? (
+                        <img 
+                          src={user.photoURL} 
+                          alt="profile" 
+                          style={{ 
+                            width: "100%", 
+                            height: "100%", 
+                            objectFit: "cover" 
+                          }} 
+                        />
+                      ) : (
+                        <span style={{color: '#b91c1c', fontWeight: 'bold', fontSize: '16px'}}>
+                          {andrewID?.charAt(0)?.toUpperCase()}
+                        </span>
+                      )}
                     </button>
-                  )}
+                    <span>{i + 1}. {displayName}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span>{user.elo?.[sport] || 1000}</span>
+                    {currentAndrewID && andrewID !== currentAndrewID && (
+                      <button
+                        onClick={() => openChallengeForm(user, sport)}
+                        style={{
+                          padding: "6px 12px",
+                          backgroundColor: "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: "bold"
+                        }}
+                      >
+                        Challenge
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })}
